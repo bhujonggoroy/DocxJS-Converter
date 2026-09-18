@@ -11,9 +11,35 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function postProcessEquations(markdown: string): string {
+  if (!markdown) return '';
   let s = markdown;
 
-  // LaTeX nu with subscripts
+  // 1. Multi-part subscripts with commas: F_v1, v2 / F_v2, v1 / F_1, v / F_v, 1
+  s = s.replace(/\bF_\{?v?1\s*,\s*v?2\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+       .replace(/\bF_\{?v?2\s*,\s*v?1\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+       .replace(/\bF_\{?1\s*,\s*v\}?/gi, 'F<sub>1, ν</sub>')
+       .replace(/\bF_\{?v\s*,\s*1\}?/gi, 'F<sub>ν, 1</sub>')
+       .replace(/\bF_\{?ν1\s*,\s*ν2\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+       .replace(/\bF_\{?ν2\s*,\s*ν1\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+       .replace(/\bF_\{?ν₁\s*,\s*ν₂\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+       .replace(/\bF_\{?ν₂\s*,\s*ν₁\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+       .replace(/\bF_\{?1\s*,\s*ν\}?/gi, 'F<sub>1, ν</sub>');
+
+  // 2. Chi-square forms with degrees of freedom: chi^2_v1, chi^2_v2, chi^2_v, chi^2_k
+  s = s.replace(/\\?chi\^?2_\{?v?([1₁])\}?/gi, 'χ²<sub>ν₁</sub>')
+       .replace(/\\?chi\^?2_\{?v?([2₂])\}?/gi, 'χ²<sub>ν₂</sub>')
+       .replace(/\\?chi\^?2_\{?v\}?/gi, 'χ²<sub>ν</sub>')
+       .replace(/\\?chi\^?2_\{?([0-9a-zA-Zνμk]+)\}?/gi, 'χ²<sub>$1</sub>')
+       .replace(/\\?chi\^?2\b/gi, 'χ²');
+
+  // 3. Student t forms: t_v^2, t_ν^2, t^2_v, t^2_ν, t_v, t_ν
+  s = s.replace(/\b\*?t\*?_\{?[vν]\}?\^2\b/gi, 't<sub>ν</sub><sup>2</sup>')
+       .replace(/\b\*?t\*?\^2_\{?[vν]\}?\b/gi, 't<sub>ν</sub><sup>2</sup>')
+       .replace(/\b\*?t\*?_\{?[vν]\}?\b/gi, 't<sub>ν</sub>')
+       .replace(/\b\*?t\*?ᵥ\^2\b/gi, 't<sub>ν</sub><sup>2</sup>')
+       .replace(/\b\*?t\*?ᵥ\b/gi, 't<sub>ν</sub>');
+
+  // 4. LaTeX nu with subscripts
   s = s.replace(/\\*nu<sub>([0-9]+)<\/sub>/gi, (m, n) => {
     const subMap: Record<string, string> = { '1': '₁', '2': '₂', '3': '₃', '4': '₄' };
     return 'ν' + (subMap[n] || n);
@@ -23,7 +49,14 @@ function postProcessEquations(markdown: string): string {
     return 'ν' + (subMap[n] || n);
   });
 
-  // Spelled-out Greek names & LaTeX macros
+  // 5. Underscore parenthesized or braced: _(something), _{something}
+  s = s.replace(/_\(([^)]+)\)/g, '<sub>$1</sub>')
+       .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+       .replace(/_\[([^\]]+)\]/g, '<sub>$1</sub>')
+       .replace(/\^\(([^)]+)\)/g, '<sup>$1</sup>')
+       .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+
+  // 6. Spelled-out Greek names & LaTeX macros
   s = s.replace(/\\*chi\b/gi, 'χ')
        .replace(/\\*alpha\b/gi, 'α')
        .replace(/\\*beta\b/gi, 'β')
@@ -37,69 +70,48 @@ function postProcessEquations(markdown: string): string {
        .replace(/\\*sigma\b/gi, 'σ')
        .replace(/\\*omega\b/gi, 'ω');
 
-  // Math symbols & relations
+  // 7. Math symbols & relations
   s = s.replace(/\\sim/g, '~')
        .replace(/\\approx/g, '≈')
        .replace(/\\le(q)?\b/g, '≤')
        .replace(/\\ge(q)?\b/g, '≥')
        .replace(/\\neq\b/g, '≠')
-       .replace(/\\pm\b/g, '±')
-       .replace(/\\times\b/g, '×')
-       .replace(/\\cdot\b/g, '·')
-       .replace(/\\infty\b/g, '∞')
-       .replace(/\\partial\b/g, '∂')
+       .replace(/\\pm\b/gi, '±')
+       .replace(/\\times\b/gi, '×')
+       .replace(/\\cdot\b/gi, '·')
+       .replace(/\\infty\b/gi, '∞')
+       .replace(/\\partial\b/gi, '∂')
        .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
        .replace(/\\text\{([^}]+)\}/g, '$1')
        .replace(/\\mathrm\{([^}]+)\}/g, '$1')
        .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1) / ($2)');
 
-  // Underscore followed by parens/braces anywhere (e.g. *F*_(v₁, v₂), χ²_(v₁), F_(1, v))
-  s = s.replace(/_\(([^)]+)\)/g, '<sub>$1</sub>')
-       .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-       .replace(/_\[([^\]]+)\]/g, '<sub>$1</sub>');
+  // 8. Latin v vs Greek nu in degrees of freedom (Fisher F, Student t, Chi-square)
+  s = s.replace(/\bv1\b/g, 'ν₁')
+       .replace(/\bv2\b/g, 'ν₂')
+       .replace(/\bv([₁1])\b/g, 'ν₁')
+       .replace(/\bv([₂2])\b/g, 'ν₂')
+       .replace(/\bν[1]\b/g, 'ν₁')
+       .replace(/\bν[2]\b/g, 'ν₂');
 
-  // Fix \nu or ν followed by subscript tag: ν<sub>1</sub> -> ν₁
-  s = s.replace(/\\?ν<sub>([0-9]+)<\/sub>/gi, (m, n) => {
-    const subMap: Record<string, string> = { '1': '₁', '2': '₂', '3': '₃', '4': '₄' };
-    return 'ν' + (subMap[n] || n);
-  });
-  s = s.replace(/\\ν/g, 'ν');
-
-  // Latin v vs Greek nu in degrees of freedom (Fisher F, Student t, Chi-square)
-  s = s.replace(/\bv[₁1]\b/gi, 'ν₁')
-       .replace(/\bv[₂2]\b/gi, 'ν₂')
-       .replace(/([(/ \t])v[₁1]([)/ \t,])/gi, '$1ν₁$2')
-       .replace(/([(/ \t])v[₂2]([)/ \t,])/gi, '$1ν₂$2')
-       .replace(/v[₁1]/gi, 'ν₁')
-       .replace(/v[₂2]/gi, 'ν₂');
-
-  // Fix statistical degrees of freedom in subscripts
+  // 9. Fix statistical degrees of freedom in subscripts
   s = s.replace(/<sub>([^<]*)v([12])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
        .replace(/<sub>([^<]*)v([₁₂])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
        .replace(/<sub>([^<]*)\bv\b([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>')
        .replace(/<sub>([^<]*)ᵥ([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>');
 
-  // Chi-squared with degrees of freedom: χ²_v1, χ²_(v₁), χ²_1
-  s = s.replace(/χ\^?2_([0-9a-zA-Zν₁₂]+)/gi, 'χ²<sub>$1</sub>');
+  // 10. Superscript power on closing sub tags e.g. </sub>^2 or </sub>²
+  s = s.replace(/<\/sub>\^([0-9]+)/g, '</sub><sup>$1</sup>')
+       .replace(/<\/sub>²/g, '</sub><sup>2</sup>')
+       .replace(/<\/sub>³/g, '</sub><sup>3</sup>');
 
-  // Subscript / superscript on t: *t*ᵥ², t_v^2, t_v²
-  s = s.replace(/(\*?t\*?)ᵥ²/gi, '$1<sub>ν</sub><sup>2</sup>')
-       .replace(/(\*?t\*?)_v\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
-       .replace(/(\*?t\*?)_v²/gi, '$1<sub>ν</sub><sup>2</sup>')
-       .replace(/(\*?t\*?)_ν\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
-       .replace(/(\*?t\*?)_ν²/gi, '$1<sub>ν</sub><sup>2</sup>')
-       .replace(/(\*?t\*?)_v\b/gi, '$1<sub>ν</sub>')
-       .replace(/(\*?t\*?)ᵥ\b/gi, '$1<sub>ν</sub>')
-       .replace(/(\*?t\*?)_ν\b/gi, '$1<sub>ν</sub>');
-
-  // Superscript 2 on subscripts e.g. <sub>ν</sub>²
-  s = s.replace(/<sub>([0-9a-zA-Zνμσαβγ]+)<\/sub>²/g, '<sub>$1</sub><sup>2</sup>');
-
-  // Convert raw single underscore identifier if still following a variable
+  // 11. Convert raw single underscore identifier if still following a variable
   s = s.replace(/([a-zA-Zχ])_([0-9a-zA-Zνμσαβγ]+)/g, '$1<sub>$2</sub>');
   s = s.replace(/([a-zA-Zχ])\^([0-9a-zA-Zνμσαβγ]+)/g, '$1<sup>$2</sup>');
 
-  // Clean adjacent tags
+  // 12. Clean nested/adjacent tags
+  s = s.replace(/<sub><sub>/g, '<sub>').replace(/<\/sub><\/sub>/g, '</sub>');
+  s = s.replace(/<sup><sup>/g, '<sup>').replace(/<\/sup><\/sup>/g, '</sup>');
   s = s.replace(/<\/sub><sub>/g, '');
   s = s.replace(/<\/sup><sup>/g, '');
 
@@ -132,15 +144,17 @@ async function startServer() {
         return res.status(400).json({ error: 'Text is required for conversion.' });
       }
 
-      const activeKey = apiKey?.trim() || process.env.GEMINI_API_KEY;
-      if (!activeKey) {
-        return res.status(400).json({
-          error: 'No Gemini API key found. Please provide an API key or configure GEMINI_API_KEY.',
-        });
+      // Collect available keys: prioritize system environment key, fallback to client-supplied key if any
+      const candidateKeys: string[] = [];
+      if (process.env.GEMINI_API_KEY) {
+        candidateKeys.push(process.env.GEMINI_API_KEY.trim());
       }
-
-      // Initialize Google GenAI client lazily & securely
-      const ai = new GoogleGenAI({ apiKey: activeKey });
+      if (apiKey && typeof apiKey === 'string' && apiKey.trim()) {
+        const trimmed = apiKey.trim();
+        if (!candidateKeys.includes(trimmed)) {
+          candidateKeys.push(trimmed);
+        }
+      }
 
       const prompt = `You are an expert academic mathematical document formatter and typesetter.
 Transform the user's raw study notes from Google NotebookLM into professional, publication-quality academic notes for Microsoft Word (.docx) export.
@@ -181,7 +195,7 @@ RAW NOTES FROM NOTEBOOKLM:
 
 ${text}`;
 
-      // Build prioritized list of candidate models to protect against high-demand / 503 spikes
+      // Build prioritized list of candidate models (avoiding gemini-3.6-flash which has strict 20 RPM limits)
       let requested = model;
       if (requested.includes('2.0') || requested.includes('2.5') || requested === 'gemini-3.6-flash') {
         requested = 'gemini-3.1-flash-lite';
@@ -191,49 +205,57 @@ ${text}`;
         new Set([requested, 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'])
       );
 
-      let lastError: any = null;
       let resultText = '';
       let usedModel = '';
+      let lastError: any = null;
 
-      for (const candidate of candidateModels) {
-        try {
-          console.log(`Attempting conversion with model: ${candidate}`);
-          const response = await ai.models.generateContent({
-            model: candidate,
-            contents: prompt,
-          });
+      // Try keys and models in order
+      if (candidateKeys.length > 0) {
+        outerLoop: for (const keyToTry of candidateKeys) {
+          const ai = new GoogleGenAI({ apiKey: keyToTry });
+          for (const candidate of candidateModels) {
+            try {
+              console.log(`Attempting conversion with model: ${candidate}`);
+              const response = await ai.models.generateContent({
+                model: candidate,
+                contents: prompt,
+              });
 
-          resultText = response.text || '';
-          if (resultText && resultText.trim()) {
-            usedModel = candidate;
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          const msg = err?.message || String(err);
-          console.warn(`Model ${candidate} failed:`, msg);
+              resultText = response.text || '';
+              if (resultText && resultText.trim()) {
+                usedModel = candidate;
+                break outerLoop;
+              }
+            } catch (err: any) {
+              lastError = err;
+              const msg = err?.message || String(err);
+              console.warn(`Model ${candidate} failed with key:`, msg);
 
-          // If high demand (503) or rate limit (429), try next available model in cascade
-          const isHighDemandOrOverloaded =
-            msg.includes('503') ||
-            msg.includes('high demand') ||
-            msg.includes('UNAVAILABLE') ||
-            msg.includes('429') ||
-            msg.includes('RESOURCE_EXHAUSTED');
+              const isRateOrQuotaOrOverload =
+                msg.includes('503') ||
+                msg.includes('high demand') ||
+                msg.includes('UNAVAILABLE') ||
+                msg.includes('429') ||
+                msg.includes('RESOURCE_EXHAUSTED') ||
+                msg.includes('Quota exceeded') ||
+                msg.includes('free_tier_requests');
 
-          if (isHighDemandOrOverloaded) {
-            // Short backoff before testing next model
-            await new Promise((r) => setTimeout(r, 400));
-            continue;
-          } else {
-            // If it is another fatal error (e.g. invalid API key), try next model once or break
-            continue;
+              if (isRateOrQuotaOrOverload) {
+                await new Promise((r) => setTimeout(r, 300));
+                continue;
+              } else {
+                continue;
+              }
+            }
           }
         }
       }
 
-      if (!resultText) {
-        throw lastError || new Error('All Gemini model candidates are temporarily overloaded.');
+      // If AI models were completely unavailable or hit external quota limits, fallback to built-in academic normalizer
+      if (!resultText || !resultText.trim()) {
+        console.warn('Falling back to built-in academic normalizer engine');
+        resultText = postProcessEquations(text);
+        usedModel = 'built-in-math-engine';
       }
 
       resultText = resultText.trim();
@@ -251,12 +273,13 @@ ${text}`;
 
       res.json({ text: resultText, modelUsed: usedModel });
     } catch (err: any) {
-      console.error('Conversion error:', err);
-      let errMsg = err?.message || 'Failed to process document with Gemini AI.';
-      if (errMsg.includes('high demand') || errMsg.includes('503') || errMsg.includes('UNAVAILABLE')) {
-        errMsg = 'The Gemini service is temporarily experiencing high demand across Google servers. You can use our built-in Local Academic Math Engine below to format and download your .docx immediately without waiting!';
+      console.error('Conversion fallback error:', err);
+      // Even in catch, return normalized text so user operation never fails
+      const fallbackCleaned = postProcessEquations(req.body?.text || '');
+      if (fallbackCleaned) {
+        return res.json({ text: fallbackCleaned, modelUsed: 'built-in-math-engine' });
       }
-      res.status(500).json({ error: errMsg });
+      res.status(500).json({ error: 'Failed to process document.' });
     }
   });
 

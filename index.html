@@ -16,6 +16,18 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <!-- PWA Web App Manifest & Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="DocxNotes" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+
     <!-- Google Fonts for crisp typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -626,6 +638,108 @@
         border-top: 1px solid var(--color-border);
         padding-top: 20px;
       }
+
+      /* PWA In-App Install Banner */
+      .pwa-install-banner {
+        margin: 18px 0 24px 0;
+        padding: 14px 18px;
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+      }
+
+      .pwa-install-content {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+      }
+
+      .pwa-install-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: #e0f2fe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .pwa-install-text strong {
+        display: block;
+        font-size: 14px;
+        color: #0369a1;
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+
+      .pwa-install-text span {
+        font-size: 12.5px;
+        color: #0284c7;
+      }
+
+      .pwa-install-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* iOS Safari Modal */
+      .ios-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .ios-modal-card {
+        background: #ffffff;
+        width: 100%;
+        max-width: 440px;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        padding: 24px;
+        text-align: left;
+      }
+
+      .ios-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .ios-modal-header h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .btn-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        color: #64748b;
+        padding: 0 4px;
+      }
+
+      .btn-close:hover {
+        color: #0f172a;
+      }
     </style>
   </head>
   <body>
@@ -650,7 +764,74 @@
           Turn raw study notes, messy formulas, and LaTeX from Google NotebookLM into clean,
           beautifully structured Word (.docx) documents with proper Unicode math.
         </p>
+
+        <!-- PWA In-App Install Prompt Banner -->
+        <div id="pwaInstallContainer" class="pwa-install-banner" style="display: none;">
+          <div class="pwa-install-content">
+            <div class="pwa-install-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </div>
+            <div class="pwa-install-text">
+              <strong>Install Web App on your Device</strong>
+              <span>Install for instant offline access, desktop dock launch, and seamless note conversion.</span>
+            </div>
+          </div>
+          <div class="pwa-install-actions">
+            <button id="pwaInstallBtn" type="button" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px; font-weight: 600; border-radius: 9999px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Install App
+            </button>
+            <button id="pwaDismissBtn" type="button" class="btn btn-outline" style="padding: 8px 14px; font-size: 13px; border-radius: 9999px;">
+              Later
+            </button>
+          </div>
+        </div>
+
+        <!-- iOS Safari Install Button -->
+        <div id="iosInstallContainer" style="display: none; margin-top: 14px; text-align: center;">
+          <button id="iosInstallBtn" type="button" class="btn btn-outline" style="border-radius: 9999px; font-size: 13px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+            </svg>
+            Install on iPhone / iPad
+          </button>
+        </div>
       </header>
+
+      <!-- iOS Safari Instructions Modal -->
+      <div id="iosModal" class="ios-modal-overlay" style="display: none;">
+        <div class="ios-modal-card">
+          <div class="ios-modal-header">
+            <h3>Install on iPhone or iPad</h3>
+            <button id="closeIosModal" class="btn-close" aria-label="Close">&times;</button>
+          </div>
+          <div class="ios-modal-body">
+            <p style="margin-bottom: 12px; font-size: 14px; color: #475569;">
+              Safari on iOS does not support automatic install prompts, but you can install this app in two quick steps:
+            </p>
+            <ol style="margin-left: 20px; line-height: 1.7; font-size: 13px; color: #1e293b;">
+              <li>Tap the <strong>Share</strong> icon in the Safari toolbar.</li>
+              <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+            </ol>
+            <p style="margin-top: 14px; font-size: 12px; color: #64748b;">
+              The app will launch full-screen directly from your home screen with offline math engine access.
+            </p>
+          </div>
+          <div class="ios-modal-footer" style="margin-top: 18px;">
+            <button id="dismissIosModal" class="btn btn-primary" style="width: 100%; border-radius: 8px;">Got it</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offline Mode Toast Indicator -->
+      <div id="offlineIndicator" style="display: none; position: fixed; bottom: 20px; left: 20px; z-index: 9999; background: #0284c7; color: #ffffff; padding: 10px 18px; border-radius: 9999px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; display: inline-block;"></span>
+        <span>Offline Mode — Cached assets and local math engine ready</span>
+      </div>
 
       <!-- Gemini API Key Configuration Card -->
       <section class="api-key-box" id="apiKeySection">
@@ -953,10 +1134,22 @@ Examples of what gets automatically cleaned:
         const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
         const downloadDocxAgainBtn = document.getElementById('downloadDocxAgainBtn');
 
+        // PWA In-App Install DOM Elements
+        const pwaInstallContainer = document.getElementById('pwaInstallContainer');
+        const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+        const pwaDismissBtn = document.getElementById('pwaDismissBtn');
+        const iosInstallContainer = document.getElementById('iosInstallContainer');
+        const iosInstallBtn = document.getElementById('iosInstallBtn');
+        const iosModal = document.getElementById('iosModal');
+        const closeIosModal = document.getElementById('closeIosModal');
+        const dismissIosModal = document.getElementById('dismissIosModal');
+        const offlineIndicator = document.getElementById('offlineIndicator');
+
         // Internal State
         let currentCleanedMarkdown = '';
         let isProcessing = false;
         let hasServerSideKey = false;
+        let deferredPrompt = null;
 
         // Realistic NotebookLM sample notes
         const SAMPLE_NOTES = `# Classical Mechanics & Thermodynamics Summary
@@ -1006,7 +1199,126 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
           updateStats();
           setupEventListeners();
+          setupPWA();
           await checkServerStatus();
+        }
+
+        // --- Progressive Web App (PWA) Setup ---
+        function setupPWA() {
+          // 1. Register Service Worker
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker
+                .register('/sw.js')
+                .then((reg) => {
+                  console.log('PWA ServiceWorker registered with scope:', reg.scope);
+                  reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    if (installingWorker) {
+                      installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          console.log('PWA: New version cached and ready.');
+                        }
+                      };
+                    }
+                  };
+                })
+                .catch((err) => {
+                  console.warn('PWA ServiceWorker registration notice:', err);
+                });
+            });
+          }
+
+          // 2. Detect Standalone Mode (Already installed on desktop/mobile)
+          const isStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator && window.navigator.standalone === true);
+
+          if (isStandalone) {
+            console.log('Running in standalone installed PWA mode.');
+            if (pwaInstallContainer) pwaInstallContainer.style.display = 'none';
+            if (iosInstallContainer) iosInstallContainer.style.display = 'none';
+            return;
+          }
+
+          // 3. Detect iOS Safari
+          const ua = window.navigator.userAgent.toLowerCase();
+          const isIOS = /iphone|ipad|ipod/.test(ua);
+
+          if (isIOS && iosInstallContainer) {
+            iosInstallContainer.style.display = 'block';
+            iosInstallBtn.addEventListener('click', () => {
+              if (iosModal) iosModal.style.display = 'flex';
+            });
+            if (closeIosModal) {
+              closeIosModal.addEventListener('click', () => {
+                if (iosModal) iosModal.style.display = 'none';
+              });
+            }
+            if (dismissIosModal) {
+              dismissIosModal.addEventListener('click', () => {
+                if (iosModal) iosModal.style.display = 'none';
+              });
+            }
+            if (iosModal) {
+              iosModal.addEventListener('click', (e) => {
+                if (e.target === iosModal) iosModal.style.display = 'none';
+              });
+            }
+          }
+
+          // 4. Capture beforeinstallprompt for Chromium, Edge, Android, and Desktop
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const dismissed = localStorage.getItem('pwa_install_dismissed');
+            if (!dismissed && pwaInstallContainer) {
+              pwaInstallContainer.style.display = 'flex';
+            }
+          });
+
+          if (pwaInstallBtn) {
+            pwaInstallBtn.addEventListener('click', async () => {
+              if (!deferredPrompt) {
+                // If prompt wasn't captured yet, show browser instructions
+                alert('To install, click the Install icon in your browser address bar (top right) or menu.');
+                return;
+              }
+              deferredPrompt.prompt();
+              const choice = await deferredPrompt.userChoice;
+              if (choice && choice.outcome === 'accepted') {
+                if (pwaInstallContainer) pwaInstallContainer.style.display = 'none';
+                deferredPrompt = null;
+              }
+            });
+          }
+
+          if (pwaDismissBtn) {
+            pwaDismissBtn.addEventListener('click', () => {
+              if (pwaInstallContainer) pwaInstallContainer.style.display = 'none';
+              localStorage.setItem('pwa_install_dismissed', 'true');
+            });
+          }
+
+          window.addEventListener('appinstalled', () => {
+            console.log('PWA application installed successfully');
+            if (pwaInstallContainer) pwaInstallContainer.style.display = 'none';
+            if (iosInstallContainer) iosInstallContainer.style.display = 'none';
+            deferredPrompt = null;
+          });
+
+          // 5. Connectivity state indicator
+          function updateOnlineStatus() {
+            if (!offlineIndicator) return;
+            if (!navigator.onLine) {
+              offlineIndicator.style.display = 'inline-flex';
+            } else {
+              offlineIndicator.style.display = 'none';
+            }
+          }
+          window.addEventListener('online', updateOnlineStatus);
+          window.addEventListener('offline', updateOnlineStatus);
+          updateOnlineStatus();
         }
 
         async function checkServerStatus() {
@@ -1378,8 +1690,8 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
             let friendlyMsg = err.message || 'An unexpected error occurred.';
             if (friendlyMsg.includes('400') || friendlyMsg.includes('API_KEY_INVALID')) {
               friendlyMsg = 'Invalid Gemini API key. Please check your key from Google AI Studio and ensure there are no trailing spaces.';
-            } else if (friendlyMsg.includes('429')) {
-              friendlyMsg = 'Gemini rate limit or quota exceeded. Please wait a moment or use the built-in Math Engine below.';
+            } else if (friendlyMsg.includes('Quota exceeded') || friendlyMsg.includes('429') || friendlyMsg.includes('quota') || friendlyMsg.includes('free_tier_requests')) {
+              friendlyMsg = 'Your personal Gemini API key has exceeded its free-tier quota (limit 20 requests). You can click "Format with Built-in Math Engine" below to convert and download your .docx immediately without waiting!';
             } else if (friendlyMsg.includes('Failed to fetch')) {
               friendlyMsg = 'Network connection error or browser privacy extension blocking the request. Please check your internet connection.';
             } else if (friendlyMsg.includes('high demand') || friendlyMsg.includes('503') || friendlyMsg.includes('UNAVAILABLE')) {
@@ -1501,7 +1813,32 @@ CRITICAL EQUATION & MATHEMATICAL STANDARDS:
           if (!str) return '';
           let s = str;
 
-          // LaTeX nu with subscripts
+          // 1. Multi-part subscripts with commas: F_v1, v2 / F_v2, v1 / F_1, v / F_v, 1
+          s = s.replace(/\bF_\{?v?1\s*,\s*v?2\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+               .replace(/\bF_\{?v?2\s*,\s*v?1\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+               .replace(/\bF_\{?1\s*,\s*v\}?/gi, 'F<sub>1, ν</sub>')
+               .replace(/\bF_\{?v\s*,\s*1\}?/gi, 'F<sub>ν, 1</sub>')
+               .replace(/\bF_\{?ν1\s*,\s*ν2\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+               .replace(/\bF_\{?ν2\s*,\s*ν1\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+               .replace(/\bF_\{?ν₁\s*,\s*ν₂\}?/gi, 'F<sub>ν₁, ν₂</sub>')
+               .replace(/\bF_\{?ν₂\s*,\s*ν₁\}?/gi, 'F<sub>ν₂, ν₁</sub>')
+               .replace(/\bF_\{?1\s*,\s*ν\}?/gi, 'F<sub>1, ν</sub>');
+
+          // 2. Chi-square forms with degrees of freedom: chi^2_v1, chi^2_v2, chi^2_v, chi^2_k
+          s = s.replace(/\\?chi\^?2_\{?v?([1₁])\}?/gi, 'χ²<sub>ν₁</sub>')
+               .replace(/\\?chi\^?2_\{?v?([2₂])\}?/gi, 'χ²<sub>ν₂</sub>')
+               .replace(/\\?chi\^?2_\{?v\}?/gi, 'χ²<sub>ν</sub>')
+               .replace(/\\?chi\^?2_\{?([0-9a-zA-Zνμk]+)\}?/gi, 'χ²<sub>$1</sub>')
+               .replace(/\\?chi\^?2\b/gi, 'χ²');
+
+          // 3. Student t forms: t_v^2, t_ν^2, t^2_v, t^2_ν, t_v, t_ν
+          s = s.replace(/\b\*?t\*?_\{?[vν]\}?\^2\b/gi, 't<sub>ν</sub><sup>2</sup>')
+               .replace(/\b\*?t\*?\^2_\{?[vν]\}?\b/gi, 't<sub>ν</sub><sup>2</sup>')
+               .replace(/\b\*?t\*?_\{?[vν]\}?\b/gi, 't<sub>ν</sub>')
+               .replace(/\b\*?t\*?ᵥ\^2\b/gi, 't<sub>ν</sub><sup>2</sup>')
+               .replace(/\b\*?t\*?ᵥ\b/gi, 't<sub>ν</sub>');
+
+          // 4. LaTeX nu with subscripts
           s = s.replace(/\\*nu<sub>([0-9]+)<\/sub>/gi, (m, n) => {
             const subMap = { '1': '₁', '2': '₂', '3': '₃', '4': '₄' };
             return 'ν' + (subMap[n] || n);
@@ -1511,7 +1848,14 @@ CRITICAL EQUATION & MATHEMATICAL STANDARDS:
             return 'ν' + (subMap[n] || n);
           });
 
-          // Convert spelled-out Greek names & LaTeX macros
+          // 5. Underscore parenthesized or braced: _(something), _{something}
+          s = s.replace(/_\(([^)]+)\)/g, '<sub>$1</sub>')
+               .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+               .replace(/_\[([^\]]+)\]/g, '<sub>$1</sub>')
+               .replace(/\^\(([^)]+)\)/g, '<sup>$1</sup>')
+               .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+
+          // 6. Spelled-out Greek names & LaTeX macros
           s = s.replace(/\\*chi\b/gi, 'χ')
                .replace(/\\*alpha\b/gi, 'α')
                .replace(/\\*beta\b/gi, 'β')
@@ -1525,69 +1869,48 @@ CRITICAL EQUATION & MATHEMATICAL STANDARDS:
                .replace(/\\*sigma\b/gi, 'σ')
                .replace(/\\*omega\b/gi, 'ω');
 
-          // Math symbols & relations
+          // 7. Math symbols & relations
           s = s.replace(/\\sim/g, '~')
                .replace(/\\approx/g, '≈')
                .replace(/\\le(q)?\b/g, '≤')
                .replace(/\\ge(q)?\b/g, '≥')
                .replace(/\\neq\b/g, '≠')
-               .replace(/\\pm\b/g, '±')
-               .replace(/\\times\b/g, '×')
-               .replace(/\\cdot\b/g, '·')
-               .replace(/\\infty\b/g, '∞')
-               .replace(/\\partial\b/g, '∂')
+               .replace(/\\pm\b/gi, '±')
+               .replace(/\\times\b/gi, '×')
+               .replace(/\\cdot\b/gi, '·')
+               .replace(/\\infty\b/gi, '∞')
+               .replace(/\\partial\b/gi, '∂')
                .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
                .replace(/\\text\{([^}]+)\}/g, '$1')
                .replace(/\\mathrm\{([^}]+)\}/g, '$1')
                .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1) / ($2)');
 
-          // Underscore followed by parens or braces anywhere (e.g. *F*_(v₁, v₂), χ²_(v₁), F_(1, v))
-          s = s.replace(/_\(([^)]+)\)/g, '<sub>$1</sub>')
-               .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-               .replace(/_\[([^\]]+)\]/g, '<sub>$1</sub>');
+          // 8. Latin v vs Greek nu in degrees of freedom (Fisher F, Student t, Chi-square)
+          s = s.replace(/\bv1\b/g, 'ν₁')
+               .replace(/\bv2\b/g, 'ν₂')
+               .replace(/\bv([₁1])\b/g, 'ν₁')
+               .replace(/\bv([₂2])\b/g, 'ν₂')
+               .replace(/\bν[1]\b/g, 'ν₁')
+               .replace(/\bν[2]\b/g, 'ν₂');
 
-          // Latin v vs Greek nu in degrees of freedom (Fisher F, Student t, Chi-square)
-          s = s.replace(/\bv[₁1]\b/gi, 'ν₁')
-               .replace(/\bv[₂2]\b/gi, 'ν₂')
-               .replace(/([(/ \t])v[₁1]([)/ \t,])/gi, '$1ν₁$2')
-               .replace(/([(/ \t])v[₂2]([)/ \t,])/gi, '$1ν₂$2')
-               .replace(/v[₁1]/gi, 'ν₁')
-               .replace(/v[₂2]/gi, 'ν₂');
-
-          // Fix statistical degrees of freedom in subscripts
+          // 9. Fix statistical degrees of freedom in subscripts
           s = s.replace(/<sub>([^<]*)v([12])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
                .replace(/<sub>([^<]*)v([₁₂])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
                .replace(/<sub>([^<]*)\bv\b([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>')
                .replace(/<sub>([^<]*)ᵥ([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>');
 
-          // Chi-squared with degrees of freedom
-          s = s.replace(/χ\^?2_([0-9a-zA-Zν₁₂]+)/gi, 'χ²<sub>$1</sub>');
+          // 10. Superscript power on closing sub tags e.g. </sub>^2 or </sub>²
+          s = s.replace(/<\/sub>\^([0-9]+)/g, '</sub><sup>$1</sup>')
+               .replace(/<\/sub>²/g, '</sub><sup>2</sup>')
+               .replace(/<\/sub>³/g, '</sub><sup>3</sup>');
 
-          // Subscript / superscript on t: *t*ᵥ², t_v^2, t_v²
-          s = s.replace(/(\*?t\*?)ᵥ²/gi, '$1<sub>ν</sub><sup>2</sup>')
-               .replace(/(\*?t\*?)_v\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
-               .replace(/(\*?t\*?)_v²/gi, '$1<sub>ν</sub><sup>2</sup>')
-               .replace(/(\*?t\*?)_ν\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
-               .replace(/(\*?t\*?)_ν²/gi, '$1<sub>ν</sub><sup>2</sup>')
-               .replace(/(\*?t\*?)_v\b/gi, '$1<sub>ν</sub>')
-               .replace(/(\*?t\*?)ᵥ\b/gi, '$1<sub>ν</sub>')
-               .replace(/(\*?t\*?)_ν\b/gi, '$1<sub>ν</sub>');
+          // 11. Convert raw single underscore identifier if still following a variable
+          s = s.replace(/([a-zA-Zχ])_([0-9a-zA-Zνμσαβγ]+)/g, '$1<sub>$2</sub>');
+          s = s.replace(/([a-zA-Zχ])\^([0-9a-zA-Zνμσαβγ]+)/g, '$1<sup>$2</sup>');
 
-          // Clean unicode subscripts (₁, ₂, ᵥ, etc.) inside <sub>
-          s = s.replace(/<sub>([^<]+)<\/sub>/g, (m, inner) => {
-            const subMap = { '₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','ᵥ':'ν','ᵢ':'i','ⱼ':'j','ₖ':'k','ₙ':'n','ₘ':'m','ₓ':'x' };
-            let cleanInner = inner;
-            for (const [u, r] of Object.entries(subMap)) {
-              cleanInner = cleanInner.replaceAll(u, r);
-            }
-            return '<sub>' + cleanInner + '</sub>';
-          });
-
-          // Single subscript & superscript
-          s = s.replace(/([A-Za-zχ])_([0-9a-zA-Zνμσαβγ]+)/g, '$1<sub>$2</sub>');
-          s = s.replace(/([A-Za-zχ])\^([0-9a-zA-Zνμσαβγ]+)/g, '$1<sup>$2</sup>');
-
-          // Merge adjacent tags
+          // 12. Clean nested/adjacent tags
+          s = s.replace(/<sub><sub>/g, '<sub>').replace(/<\/sub><\/sub>/g, '</sub>');
+          s = s.replace(/<sup><sup>/g, '<sup>').replace(/<\/sup><\/sup>/g, '</sup>');
           s = s.replace(/<\/sub><sub>/g, '');
           s = s.replace(/<\/sup><sup>/g, '');
 
