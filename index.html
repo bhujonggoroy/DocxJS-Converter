@@ -705,8 +705,8 @@
           <div class="form-group">
             <label for="modelSelect">Gemini Model</label>
             <select id="modelSelect">
-              <option value="gemini-2.0-flash" selected>gemini-2.0-flash (Fast & Free Tier)</option>
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Enhanced Reasoning)</option>
+              <option value="gemini-3.6-flash" selected>gemini-3.6-flash (Fast, Accurate & Official)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash (Next-Gen Intelligence)</option>
             </select>
           </div>
         </div>
@@ -920,6 +920,7 @@ Examples of what gets automatically cleaned:
         // Internal State
         let currentCleanedMarkdown = '';
         let isProcessing = false;
+        let hasServerSideKey = false;
 
         // Realistic NotebookLM sample notes
         const SAMPLE_NOTES = `# Classical Mechanics & Thermodynamics Summary
@@ -960,7 +961,7 @@ Quadratic formula for characteristic frequency roots:
 $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
         // --- Initialization ---
-        function init() {
+        async function init() {
           const savedKey = localStorage.getItem(STORAGE_KEY);
           if (savedKey) {
             apiKeyInput.value = savedKey;
@@ -969,6 +970,32 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
           updateStats();
           setupEventListeners();
+          await checkServerStatus();
+        }
+
+        async function checkServerStatus() {
+          try {
+            const res = await fetch('/api/status');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.hasServerKey) {
+                hasServerSideKey = true;
+                keyStatusBadge.style.display = 'inline-flex';
+                keyStatusBadge.innerHTML = `
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+                    <path d="m9 12 2 2 4-4"/>
+                  </svg>
+                  Secure Server API Key Connected
+                `;
+                if (!apiKeyInput.value) {
+                  apiKeyInput.placeholder = 'Secure server key connected (leave blank or enter key to override)';
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Static hosting mode without server:', e);
+          }
         }
 
         function showKeySaved(isSaved) {
@@ -1132,15 +1159,15 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
         async function handleProcessing(downloadImmediately) {
           if (isProcessing) return;
 
-          const apiKey = apiKeyInput.value.trim() || localStorage.getItem(STORAGE_KEY);
-          if (!apiKey) {
-            showError('Please enter your Gemini API key above. It is required to clean the notes.');
+          const apiKey = apiKeyInput.value.trim() || localStorage.getItem(STORAGE_KEY) || '';
+          if (!apiKey && !hasServerSideKey) {
+            showError('Please enter your Gemini API key above or configure GEMINI_API_KEY. It is required to clean the notes.');
             apiKeyInput.focus();
             return;
           }
 
-          // Auto-save key if not already saved
-          if (!localStorage.getItem(STORAGE_KEY)) {
+          // Auto-save key if user typed one
+          if (apiKey && !localStorage.getItem(STORAGE_KEY)) {
             localStorage.setItem(STORAGE_KEY, apiKey);
             showKeySaved(true);
           }
@@ -1156,10 +1183,14 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           convertBtn.disabled = true;
           previewBtn.disabled = true;
 
-          const model = modelSelect.value;
+          let model = modelSelect.value || 'gemini-3.6-flash';
+          if (model.includes('2.0') || model.includes('2.5')) {
+            model = 'gemini-3.6-flash';
+          }
+
           showStatus(
             'Formatting Notes & Converting Math...',
-            `Connecting to Google Gemini API (${model})...`,
+            `Processing with Gemini AI (${model})...`,
             'loading',
             [
               'Analyzing raw NotebookLM text structure',
@@ -1169,7 +1200,48 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           );
 
           try {
-            const cleanedMarkdown = await callGeminiAPI(apiKey, model, rawNotes);
+            let cleanedMarkdown = '';
+            let usedServer = false;
+
+            // Attempt secure server-side API call first
+            try {
+              const serverRes = await fetch('/api/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: rawNotes,
+                  apiKey: apiKey || undefined,
+                  model
+                })
+              });
+
+              if (serverRes.ok) {
+                const data = await serverRes.json();
+                if (data.text) {
+                  cleanedMarkdown = data.text;
+                  usedServer = true;
+                }
+              } else if (serverRes.status !== 404) {
+                const errData = await serverRes.json().catch(() => null);
+                if (errData && errData.error) {
+                  throw new Error(errData.error);
+                }
+              }
+            } catch (err) {
+              if (err.message && !err.message.includes('404') && !err.message.includes('Failed to fetch')) {
+                throw err;
+              }
+              // If server is 404 or not reachable (e.g. pure static GitHub Pages), we proceed to client fallback
+            }
+
+            // Client-side fallback for static GitHub Pages hosting
+            if (!usedServer) {
+              if (!apiKey) {
+                throw new Error('Please enter a Gemini API key to convert on static hosting.');
+              }
+              cleanedMarkdown = await callGeminiAPI(apiKey, model, rawNotes);
+            }
+
             currentCleanedMarkdown = cleanedMarkdown;
 
             // Render preview
@@ -1202,9 +1274,10 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           }
         }
 
-        // --- Call Gemini API directly via fetch() ---
+        // --- Call Gemini API directly via fetch() (Static GitHub Pages fallback) ---
         async function callGeminiAPI(apiKey, model, text) {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const activeModel = (model.includes('2.0') || model.includes('2.5')) ? 'gemini-3.6-flash' : model;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
 
           const systemInstruction = `You are an expert academic document formatter and LaTeX-to-Unicode math converter.
 The user provides raw study notes or summaries copied from Google NotebookLM. These notes often contain raw or messy LaTeX math expressions ($...$, $$...$$, \\frac, \\sqrt, \\int, etc.), inconsistent formatting, and uneven line breaks.
