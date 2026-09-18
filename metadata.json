@@ -1,0 +1,6 @@
+{
+  "name": "NotebookLM to DOCX Converter",
+  "description": "Convert raw NotebookLM study notes with LaTeX and math into beautifully formatted Word (.docx) documents directly in your browser.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
