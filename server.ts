@@ -118,7 +118,7 @@ async function startServer() {
     res.json({
       status: 'ok',
       hasServerKey,
-      defaultModel: 'gemini-3.6-flash',
+      defaultModel: 'gemini-3.1-flash-lite',
       serverSecured: true,
     });
   });
@@ -126,7 +126,7 @@ async function startServer() {
   // Secure server-side AI conversion route (keeps GEMINI_API_KEY hidden from browser)
   app.post('/api/convert', async (req, res) => {
     try {
-      const { text, apiKey, model = 'gemini-3.6-flash' } = req.body;
+      const { text, apiKey, model = 'gemini-3.1-flash-lite' } = req.body;
 
       if (!text || typeof text !== 'string' || !text.trim()) {
         return res.status(400).json({ error: 'Text is required for conversion.' });
@@ -181,15 +181,61 @@ RAW NOTES FROM NOTEBOOKLM:
 
 ${text}`;
 
-      // Support gemini-3.6-flash or gemini-3.8-flash (fallback safely if user specifies older model)
-      const selectedModel = model.includes('2.0') || model.includes('2.5') ? 'gemini-3.6-flash' : model;
+      // Build prioritized list of candidate models to protect against high-demand / 503 spikes
+      let requested = model;
+      if (requested.includes('2.0') || requested.includes('2.5') || requested === 'gemini-3.6-flash') {
+        requested = 'gemini-3.1-flash-lite';
+      }
 
-      const response = await ai.models.generateContent({
-        model: selectedModel,
-        contents: prompt,
-      });
+      const candidateModels = Array.from(
+        new Set([requested, 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'])
+      );
 
-      let resultText = response.text || '';
+      let lastError: any = null;
+      let resultText = '';
+      let usedModel = '';
+
+      for (const candidate of candidateModels) {
+        try {
+          console.log(`Attempting conversion with model: ${candidate}`);
+          const response = await ai.models.generateContent({
+            model: candidate,
+            contents: prompt,
+          });
+
+          resultText = response.text || '';
+          if (resultText && resultText.trim()) {
+            usedModel = candidate;
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          const msg = err?.message || String(err);
+          console.warn(`Model ${candidate} failed:`, msg);
+
+          // If high demand (503) or rate limit (429), try next available model in cascade
+          const isHighDemandOrOverloaded =
+            msg.includes('503') ||
+            msg.includes('high demand') ||
+            msg.includes('UNAVAILABLE') ||
+            msg.includes('429') ||
+            msg.includes('RESOURCE_EXHAUSTED');
+
+          if (isHighDemandOrOverloaded) {
+            // Short backoff before testing next model
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
+          } else {
+            // If it is another fatal error (e.g. invalid API key), try next model once or break
+            continue;
+          }
+        }
+      }
+
+      if (!resultText) {
+        throw lastError || new Error('All Gemini model candidates are temporarily overloaded.');
+      }
+
       resultText = resultText.trim();
       if (resultText.startsWith('```markdown')) {
         resultText = resultText.slice(11);
@@ -203,10 +249,13 @@ ${text}`;
       // Post-process to ensure no stray underscores or broken subscripts remain
       resultText = postProcessEquations(resultText.trim());
 
-      res.json({ text: resultText });
+      res.json({ text: resultText, modelUsed: usedModel });
     } catch (err: any) {
       console.error('Conversion error:', err);
-      const errMsg = err?.message || 'Failed to process document with Gemini AI.';
+      let errMsg = err?.message || 'Failed to process document with Gemini AI.';
+      if (errMsg.includes('high demand') || errMsg.includes('503') || errMsg.includes('UNAVAILABLE')) {
+        errMsg = 'The Gemini service is temporarily experiencing high demand across Google servers. You can use our built-in Local Academic Math Engine below to format and download your .docx immediately without waiting!';
+      }
       res.status(500).json({ error: errMsg });
     }
   });

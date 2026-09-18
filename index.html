@@ -738,8 +738,9 @@
           <div class="form-group">
             <label for="modelSelect">Gemini Model</label>
             <select id="modelSelect">
-              <option value="gemini-3.6-flash" selected>gemini-3.6-flash (Fast, Accurate & Official)</option>
-              <option value="gemini-3.8-flash">gemini-3.8-flash (Next-Gen Intelligence)</option>
+              <option value="gemini-3.1-flash-lite" selected>gemini-3.1-flash-lite (High Speed & Highest Availability - Recommended)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash (Standard Intelligence)</option>
+              <option value="gemini-flash-latest">gemini-flash-latest (Latest Flash)</option>
             </select>
           </div>
         </div>
@@ -808,8 +809,9 @@ Examples of what gets automatically cleaned:
             <div class="spinner" id="statusSpinner"></div>
             <strong id="statusTitle">Processing Notes...</strong>
           </div>
-          <div id="statusMessage" style="margin-top: 6px; font-size: 13px;"></div>
+          <div id="statusMessage" style="margin-top: 6px; font-size: 13px; line-height: 1.5;"></div>
           <ul class="status-steps" id="statusSteps"></ul>
+          <div id="statusActions" style="display: none; margin-top: 12px; gap: 8px; flex-wrap: wrap;"></div>
         </div>
       </main>
 
@@ -941,6 +943,7 @@ Examples of what gets automatically cleaned:
         const statusTitle = document.getElementById('statusTitle');
         const statusMessage = document.getElementById('statusMessage');
         const statusSteps = document.getElementById('statusSteps');
+        const statusActions = document.getElementById('statusActions');
 
         const previewSection = document.getElementById('previewSection');
         const formattedPreview = document.getElementById('formattedPreview');
@@ -1163,6 +1166,10 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           statusBox.style.display = 'block';
           statusTitle.textContent = title;
           statusMessage.textContent = message;
+          if (statusActions) {
+            statusActions.innerHTML = '';
+            statusActions.style.display = 'none';
+          }
 
           if (type === 'loading') {
             statusSpinner.style.display = 'inline-block';
@@ -1180,12 +1187,89 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           }
         }
 
-        function showError(message) {
+        function showError(message, allowFallback = true) {
           showStatus('Error', message, 'error');
+
+          if (allowFallback && statusActions) {
+            statusActions.innerHTML = `
+              <button type="button" class="btn btn-primary" id="retryFlashLiteBtn" style="padding: 7px 14px; font-size: 13px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Retry with Flash-Lite
+              </button>
+              <button type="button" class="btn btn-secondary" id="localFallbackBtn" style="padding: 7px 14px; font-size: 13px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Format with Built-in Math Engine (Instant)
+              </button>
+            `;
+            statusActions.style.display = 'flex';
+
+            const retryBtn = document.getElementById('retryFlashLiteBtn');
+            if (retryBtn) {
+              retryBtn.addEventListener('click', () => {
+                modelSelect.value = 'gemini-3.1-flash-lite';
+                handleProcessing(false);
+              });
+            }
+
+            const localBtn = document.getElementById('localFallbackBtn');
+            if (localBtn) {
+              localBtn.addEventListener('click', () => {
+                formatLocally(notesInput.value, false);
+              });
+            }
+          }
         }
 
         function hideStatus() {
           statusBox.style.display = 'none';
+          if (statusActions) {
+            statusActions.style.display = 'none';
+          }
+        }
+
+        // --- Built-in Local Academic Math & Document Formatter ---
+        function formatLocally(rawText, downloadImmediately = false) {
+          const text = rawText || notesInput.value || '';
+          if (!text.trim()) {
+            showError('Please paste your study notes into the textarea first.', false);
+            return;
+          }
+
+          showStatus('Formatting with Local Engine...', 'Normalizing mathematical expressions, Greek degrees of freedom, and typography...', 'loading');
+
+          setTimeout(async () => {
+            try {
+              let cleaned = cleanAndNormalizeMath(text);
+
+              // Normalize math formulas into display blocks if on own line
+              const lines = cleaned.split('\n');
+              const formattedLines = [];
+              for (let line of lines) {
+                let l = line.trim();
+                if (/^[A-Za-zχF]\s*=\s*.+/.test(l) && !l.startsWith('#') && !l.startsWith('*') && !l.startsWith('-') && !l.startsWith('$$')) {
+                  formattedLines.push(`$$${l}$$`);
+                } else {
+                  formattedLines.push(line);
+                }
+              }
+              cleaned = cleanAndNormalizeMath(formattedLines.join('\n'));
+
+              currentCleanedMarkdown = cleaned;
+              renderPreview(cleaned);
+              previewSection.style.display = 'block';
+              previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+              if (downloadImmediately) {
+                showStatus('Generating DOCX File...', 'Building Microsoft Word document in browser...', 'loading');
+                await generateAndDownloadDocx(cleaned);
+                showStatus('Success! Download Complete', 'Your formatted .docx file has been downloaded directly by your browser.', 'success');
+              } else {
+                showStatus('Notes Formatted!', 'Preview your cleaned notes below. You can download the .docx file at any time.', 'success');
+              }
+            } catch (e) {
+              showError('Local formatting error: ' + e.message, false);
+            }
+          }, 100);
         }
 
         // --- Core Gemini Processing ---
@@ -1194,7 +1278,7 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
           const apiKey = apiKeyInput.value.trim() || localStorage.getItem(STORAGE_KEY) || '';
           if (!apiKey && !hasServerSideKey) {
-            showError('Please enter your Gemini API key above or configure GEMINI_API_KEY. It is required to clean the notes.');
+            showError('Please enter your Gemini API key above or configure GEMINI_API_KEY. It is required to clean the notes.', false);
             apiKeyInput.focus();
             return;
           }
@@ -1207,7 +1291,7 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
           const rawNotes = notesInput.value.trim();
           if (!rawNotes) {
-            showError('Please paste your study notes into the textarea before converting.');
+            showError('Please paste your study notes into the textarea before converting.', false);
             notesInput.focus();
             return;
           }
@@ -1216,9 +1300,9 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           convertBtn.disabled = true;
           previewBtn.disabled = true;
 
-          let model = modelSelect.value || 'gemini-3.6-flash';
-          if (model.includes('2.0') || model.includes('2.5')) {
-            model = 'gemini-3.6-flash';
+          let model = modelSelect.value || 'gemini-3.1-flash-lite';
+          if (model.includes('2.0') || model.includes('2.5') || model === 'gemini-3.6-flash') {
+            model = 'gemini-3.1-flash-lite';
           }
 
           showStatus(
@@ -1295,11 +1379,13 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
             if (friendlyMsg.includes('400') || friendlyMsg.includes('API_KEY_INVALID')) {
               friendlyMsg = 'Invalid Gemini API key. Please check your key from Google AI Studio and ensure there are no trailing spaces.';
             } else if (friendlyMsg.includes('429')) {
-              friendlyMsg = 'Gemini rate limit or quota exceeded. Please wait a minute before trying again.';
+              friendlyMsg = 'Gemini rate limit or quota exceeded. Please wait a moment or use the built-in Math Engine below.';
             } else if (friendlyMsg.includes('Failed to fetch')) {
               friendlyMsg = 'Network connection error or browser privacy extension blocking the request. Please check your internet connection.';
+            } else if (friendlyMsg.includes('high demand') || friendlyMsg.includes('503') || friendlyMsg.includes('UNAVAILABLE')) {
+              friendlyMsg = 'This model is currently experiencing high demand on Google servers. You can retry with Flash-Lite or use our instant Built-in Math Engine below.';
             }
-            showError(friendlyMsg);
+            showError(friendlyMsg, true);
           } finally {
             isProcessing = false;
             convertBtn.disabled = false;
@@ -1309,8 +1395,8 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
 
         // --- Call Gemini API directly via fetch() (Static GitHub Pages fallback) ---
         async function callGeminiAPI(apiKey, model, text) {
-          const activeModel = (model.includes('2.0') || model.includes('2.5')) ? 'gemini-3.6-flash' : model;
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
+          let req = (model.includes('2.0') || model.includes('2.5') || model === 'gemini-3.6-flash') ? 'gemini-3.1-flash-lite' : model;
+          const candidateModels = Array.from(new Set([req, 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash']));
 
           const systemInstruction = `You are an expert academic mathematical document formatter and typesetter.
 Transform the user's raw study notes from Google NotebookLM into professional, publication-quality academic notes for Microsoft Word (.docx) export.
@@ -1347,61 +1433,67 @@ CRITICAL EQUATION & MATHEMATICAL STANDARDS:
    - Do NOT wrap in \`\`\`markdown code blocks.
    - Do NOT add polite introductory or concluding remarks.`;
 
-          const payload = {
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: `${systemInstruction}\n\nRAW NOTES FROM NOTEBOOKLM:\n\n${text}`
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.2
-            }
-          };
-
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-
-          if (!response.ok) {
-            const errorBody = await response.text();
-            let parsed;
+          let lastErr = null;
+          for (const modelToTry of candidateModels) {
             try {
-              parsed = JSON.parse(errorBody);
-            } catch {
-              parsed = null;
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToTry}:generateContent?key=${apiKey}`;
+              const payload = {
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      {
+                        text: `${systemInstruction}\n\nRAW NOTES FROM NOTEBOOKLM:\n\n${text}`
+                      }
+                    ]
+                  }
+                ],
+                generationConfig: {
+                  temperature: 0.2
+                }
+              };
+
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              if (!response.ok) {
+                const errorBody = await response.text();
+                let parsed;
+                try { parsed = JSON.parse(errorBody); } catch { parsed = null; }
+                const errMsg = (parsed && parsed.error && parsed.error.message) || `HTTP ${response.status}: ${response.statusText}`;
+                if (response.status === 503 || errMsg.includes('high demand') || response.status === 429) {
+                  lastErr = new Error(errMsg);
+                  await new Promise(r => setTimeout(r, 400));
+                  continue;
+                }
+                throw new Error(errMsg);
+              }
+
+              const data = await response.json();
+              if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+                throw new Error('Gemini API returned an empty response.');
+              }
+
+              let resultText = data.candidates[0].content.parts.map((p) => p.text || '').join('');
+              resultText = resultText.trim();
+              if (resultText.startsWith('```markdown')) resultText = resultText.slice(11);
+              else if (resultText.startsWith('```')) resultText = resultText.slice(3);
+              if (resultText.endsWith('```')) resultText = resultText.slice(0, -3);
+
+              return cleanAndNormalizeMath(resultText.trim());
+            } catch (err) {
+              lastErr = err;
+              if (err.message && (err.message.includes('503') || err.message.includes('high demand') || err.message.includes('429'))) {
+                continue;
+              }
+              throw err;
             }
-            const errMsg = (parsed && parsed.error && parsed.error.message) || `HTTP error ${response.status}: ${response.statusText}`;
-            throw new Error(errMsg);
           }
 
-          const data = await response.json();
-          if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
-            throw new Error('Gemini API returned an empty response.');
-          }
-
-          let resultText = data.candidates[0].content.parts.map((p) => p.text || '').join('');
-
-          // Clean any markdown fences if Gemini added them
-          resultText = resultText.trim();
-          if (resultText.startsWith('```markdown')) {
-            resultText = resultText.slice(11);
-          } else if (resultText.startsWith('```')) {
-            resultText = resultText.slice(3);
-          }
-          if (resultText.endsWith('```')) {
-            resultText = resultText.slice(0, -3);
-          }
-
-          return cleanAndNormalizeMath(resultText.trim());
+          throw lastErr || new Error('All Gemini model candidates are temporarily overloaded.');
         }
 
         // --- Mathematical Normalizer & Cleaner ---
