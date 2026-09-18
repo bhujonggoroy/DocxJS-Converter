@@ -535,6 +535,39 @@
         color: #9c4116;
       }
 
+      .preview-paper sub {
+        font-size: 0.78em;
+        vertical-align: sub;
+        line-height: 0;
+      }
+
+      .preview-paper sup {
+        font-size: 0.78em;
+        vertical-align: super;
+        line-height: 0;
+      }
+
+      .preview-paper .equation-block {
+        text-align: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid #3b82f6;
+        border-radius: 6px;
+        padding: 12px 18px;
+        margin: 14px 0;
+        font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+        font-size: 17px;
+        color: #0f172a;
+        letter-spacing: 0.02em;
+        overflow-x: auto;
+      }
+
+      .preview-paper .math-inline {
+        font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+        font-style: italic;
+        padding: 0 2px;
+      }
+
       .raw-markdown-view {
         display: none;
         background: #0f172a;
@@ -1279,41 +1312,40 @@ $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$`;
           const activeModel = (model.includes('2.0') || model.includes('2.5')) ? 'gemini-3.6-flash' : model;
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
 
-          const systemInstruction = `You are an expert academic document formatter and LaTeX-to-Unicode math converter.
-The user provides raw study notes or summaries copied from Google NotebookLM. These notes often contain raw or messy LaTeX math expressions ($...$, $$...$$, \\frac, \\sqrt, \\int, etc.), inconsistent formatting, and uneven line breaks.
+          const systemInstruction = `You are an expert academic mathematical document formatter and typesetter.
+Transform the user's raw study notes from Google NotebookLM into professional, publication-quality academic notes for Microsoft Word (.docx) export.
 
-YOUR STRICT DIRECTIVES:
-1. PRESERVE 100% OF THE ORIGINAL CONTENT:
-   - Do NOT summarize, condense, delete, or skip any notes, examples, or definitions.
-   - Maintain every single concept, theorem, proof, and detail provided.
+CRITICAL EQUATION & MATHEMATICAL STANDARDS:
+1. SUBSCRIPTS & SUPERSCRIPTS:
+   - NEVER leave raw underscores (e.g. '_v1', '_v2', '_1, v', 't_v') or raw carets (e.g. '^2', '^n') in the text.
+   - Wrap ALL subscripts in HTML <sub>...</sub> tags and superscripts in HTML <sup>...</sup> tags:
+     * 'F_v1, v2' -> 'F<sub>ν₁, ν₂</sub>'
+     * 'chi^2_v1' or 'χ²_v1' -> 'χ²<sub>ν₁</sub>'
+     * 'chi^2_v2' or 'χ²_v2' -> 'χ²<sub>ν₂</sub>'
+     * 'F_1, v = t_v^2' or 'F_1, v = t_v²' -> 'F<sub>1, ν</sub> = t<sub>ν</sub>²'
+     * 'E(F) = v2 / (v2 - 2)' -> 'E(F) = ν₂ / (ν₂ - 2) for ν₂ > 2'
+     * '1 / F ~ F_v2, v1' -> '1 / F ~ F<sub>ν₂, ν₁</sub>'
 
-2. CONVERT ALL LATEX & MATH EXPRESSIONS INTO CLEAN UNICODE NOTATION:
-   Standard Word (.docx) files without equation plugins cannot render raw LaTeX commands.
-   Convert ALL math and LaTeX syntax into clean, standard Unicode mathematical characters suitable for plain typography:
-   - Superscripts: x², x³, xⁿ, e⁻ˣ, 10⁵
-   - Subscripts: x₀, x₁, aᵢ, H₂O
-   - Fractions: Use clean slash format (e.g. (a + b) / c or a/b or ½, ⅓, ¼ where appropriate)
-   - Roots: √x, ∛(x + y), √(b² - 4ac)
-   - Operators & Sums: ±, ∓, ×, ÷, ·, ∑, ∏, ∫, ∮, ∂, ∇, ∞, ≈, ≠, ≤, ≥, ≡, ∝, ∈, ∉, ⊂, ⊆, ∪, ∩
-   - Arrows: →, ←, ↔, ⇒, ⇐, ⇔
-   - Greek Letters: α, β, γ, δ, ε, θ, λ, μ, π, ρ, σ, τ, φ, ψ, ω, Δ, Γ, Θ, Λ, Σ, Φ, Ψ, Ω
-   - Vectors: use bold **v** or arrow v⃗
-   - Strip all LaTeX syntax wrappers like \\text{...}, \\mathbf{...}, $, $$, \\left, \\right, \\displaystyle, etc.
+2. GREEK LETTERS & STATISTICAL SYMBOLS:
+   - In statistical distributions (Fisher's F-distribution, Student's t-distribution, degrees of freedom) and physics, degrees of freedom is ALWAYS the Greek letter nu: ν, ν₁, ν₂. NEVER use Latin 'v'.
+   - Use standard mathematical symbols: χ (chi), μ (mu), σ (sigma), α (alpha), β (beta), λ (lambda), θ (theta), ε (epsilon), etc.
+   - Use proper mathematical relations: ~ (distributed as), ≈ (approximately), ± (plus-minus), ∓, ×, ·, ÷, √, ∑, ∫, ≤, ≥, ≠, ≡.
 
-3. STRUCTURE AS STANDARD MARKDOWN:
-   - Use # for Document / Major Subject Title (Heading 1)
-   - Use ## for Main Sections / Topics (Heading 2)
-   - Use ### for Subtopics / Concepts (Heading 3)
-   - Use **bold** for key terms, definitions, and variable names
-   - Use *italic* for emphasis
-   - Use - for bullet points
-   - Use 1., 2., 3. for numbered sequential steps
-   - Use > for key theorems, laws, formulas, or takeaways
+3. FRACTIONS & FORMULA DISPLAY:
+   - For standalone key formulas and definitions, present them cleanly using display equation blocks:
+     $$F = \\frac{U / \\nu_1}{V / \\nu_2}$$
+     where U ~ χ²<sub>ν₁</sub> and V ~ χ²<sub>ν₂</sub>
+   - Or clean display notation with clear division:
+     F = (U / ν₁) ÷ (V / ν₂)
 
-4. OUTPUT FORMAT:
-   - Output ONLY the clean Markdown text.
-   - Do NOT wrap the entire response in a markdown code block (do not start with \`\`\`markdown).
-   - Do NOT add polite commentary like "Here is your converted text" or "Hope this helps".`;
+4. STRICT PRESERVATION:
+   - Preserve 100% of the original content, theorems, explanations, examples, and details.
+   - Do NOT summarize or omit anything.
+
+5. OUTPUT FORMAT:
+   - Output ONLY clean Markdown text with <sub> and <sup> tags for equations.
+   - Do NOT wrap in \`\`\`markdown code blocks.
+   - Do NOT add polite introductory or concluding remarks.`;
 
           const payload = {
             contents: [
@@ -1369,7 +1401,105 @@ YOUR STRICT DIRECTIVES:
             resultText = resultText.slice(0, -3);
           }
 
-          return resultText.trim();
+          return cleanAndNormalizeMath(resultText.trim());
+        }
+
+        // --- Mathematical Normalizer & Cleaner ---
+        function cleanAndNormalizeMath(str) {
+          if (!str) return '';
+          let s = str;
+
+          // LaTeX nu with subscripts
+          s = s.replace(/\\*nu<sub>([0-9]+)<\/sub>/gi, (m, n) => {
+            const subMap = { '1': '₁', '2': '₂', '3': '₃', '4': '₄' };
+            return 'ν' + (subMap[n] || n);
+          });
+          s = s.replace(/\\*nu_([0-9]+)/gi, (m, n) => {
+            const subMap = { '1': '₁', '2': '₂', '3': '₃', '4': '₄' };
+            return 'ν' + (subMap[n] || n);
+          });
+
+          // Convert spelled-out Greek names & LaTeX macros
+          s = s.replace(/\\*chi\b/gi, 'χ')
+               .replace(/\\*alpha\b/gi, 'α')
+               .replace(/\\*beta\b/gi, 'β')
+               .replace(/\\*gamma\b/gi, 'γ')
+               .replace(/\\*delta\b/gi, 'δ')
+               .replace(/\\*theta\b/gi, 'θ')
+               .replace(/\\*lambda\b/gi, 'λ')
+               .replace(/\\*mu\b/gi, 'μ')
+               .replace(/\\*nu\b/gi, 'ν')
+               .replace(/\\*pi\b/gi, 'π')
+               .replace(/\\*sigma\b/gi, 'σ')
+               .replace(/\\*omega\b/gi, 'ω');
+
+          // Math symbols & relations
+          s = s.replace(/\\sim/g, '~')
+               .replace(/\\approx/g, '≈')
+               .replace(/\\le(q)?\b/g, '≤')
+               .replace(/\\ge(q)?\b/g, '≥')
+               .replace(/\\neq\b/g, '≠')
+               .replace(/\\pm\b/g, '±')
+               .replace(/\\times\b/g, '×')
+               .replace(/\\cdot\b/g, '·')
+               .replace(/\\infty\b/g, '∞')
+               .replace(/\\partial\b/g, '∂')
+               .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+               .replace(/\\text\{([^}]+)\}/g, '$1')
+               .replace(/\\mathrm\{([^}]+)\}/g, '$1')
+               .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1) / ($2)');
+
+          // Underscore followed by parens or braces anywhere (e.g. *F*_(v₁, v₂), χ²_(v₁), F_(1, v))
+          s = s.replace(/_\(([^)]+)\)/g, '<sub>$1</sub>')
+               .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+               .replace(/_\[([^\]]+)\]/g, '<sub>$1</sub>');
+
+          // Latin v vs Greek nu in degrees of freedom (Fisher F, Student t, Chi-square)
+          s = s.replace(/\bv[₁1]\b/gi, 'ν₁')
+               .replace(/\bv[₂2]\b/gi, 'ν₂')
+               .replace(/([(/ \t])v[₁1]([)/ \t,])/gi, '$1ν₁$2')
+               .replace(/([(/ \t])v[₂2]([)/ \t,])/gi, '$1ν₂$2')
+               .replace(/v[₁1]/gi, 'ν₁')
+               .replace(/v[₂2]/gi, 'ν₂');
+
+          // Fix statistical degrees of freedom in subscripts
+          s = s.replace(/<sub>([^<]*)v([12])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
+               .replace(/<sub>([^<]*)v([₁₂])([^<]*)<\/sub>/gi, '<sub>$1ν$2$3</sub>')
+               .replace(/<sub>([^<]*)\bv\b([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>')
+               .replace(/<sub>([^<]*)ᵥ([^<]*)<\/sub>/gi, '<sub>$1ν$2</sub>');
+
+          // Chi-squared with degrees of freedom
+          s = s.replace(/χ\^?2_([0-9a-zA-Zν₁₂]+)/gi, 'χ²<sub>$1</sub>');
+
+          // Subscript / superscript on t: *t*ᵥ², t_v^2, t_v²
+          s = s.replace(/(\*?t\*?)ᵥ²/gi, '$1<sub>ν</sub><sup>2</sup>')
+               .replace(/(\*?t\*?)_v\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
+               .replace(/(\*?t\*?)_v²/gi, '$1<sub>ν</sub><sup>2</sup>')
+               .replace(/(\*?t\*?)_ν\^?2/gi, '$1<sub>ν</sub><sup>2</sup>')
+               .replace(/(\*?t\*?)_ν²/gi, '$1<sub>ν</sub><sup>2</sup>')
+               .replace(/(\*?t\*?)_v\b/gi, '$1<sub>ν</sub>')
+               .replace(/(\*?t\*?)ᵥ\b/gi, '$1<sub>ν</sub>')
+               .replace(/(\*?t\*?)_ν\b/gi, '$1<sub>ν</sub>');
+
+          // Clean unicode subscripts (₁, ₂, ᵥ, etc.) inside <sub>
+          s = s.replace(/<sub>([^<]+)<\/sub>/g, (m, inner) => {
+            const subMap = { '₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','ᵥ':'ν','ᵢ':'i','ⱼ':'j','ₖ':'k','ₙ':'n','ₘ':'m','ₓ':'x' };
+            let cleanInner = inner;
+            for (const [u, r] of Object.entries(subMap)) {
+              cleanInner = cleanInner.replaceAll(u, r);
+            }
+            return '<sub>' + cleanInner + '</sub>';
+          });
+
+          // Single subscript & superscript
+          s = s.replace(/([A-Za-zχ])_([0-9a-zA-Zνμσαβγ]+)/g, '$1<sub>$2</sub>');
+          s = s.replace(/([A-Za-zχ])\^([0-9a-zA-Zνμσαβγ]+)/g, '$1<sup>$2</sup>');
+
+          // Merge adjacent tags
+          s = s.replace(/<\/sub><sub>/g, '');
+          s = s.replace(/<\/sup><sup>/g, '');
+
+          return s;
         }
 
         // --- Render In-Browser Preview ---
@@ -1394,8 +1524,15 @@ YOUR STRICT DIRECTIVES:
               continue;
             }
 
+            // Display Equation Block ($$...$$ or \[...\])
+            if ((trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 4) ||
+                (trimmed.startsWith('\\[') && trimmed.endsWith('\\]') && trimmed.length > 4)) {
+              if (inList) { html += listType === 'ul' ? '</ul>' : '</ol>'; inList = false; }
+              const inner = trimmed.startsWith('$$') ? trimmed.slice(2, -2).trim() : trimmed.slice(2, -2).trim();
+              html += `<div class="equation-block">${formatInline(inner)}</div>`;
+            }
             // Headings
-            if (trimmed.startsWith('# ')) {
+            else if (trimmed.startsWith('# ')) {
               if (inList) { html += listType === 'ul' ? '</ul>' : '</ol>'; inList = false; }
               html += `<h1>${formatInline(trimmed.slice(2))}</h1>`;
             } else if (trimmed.startsWith('## ')) {
@@ -1449,8 +1586,22 @@ YOUR STRICT DIRECTIVES:
         }
 
         function formatInline(str) {
+          // First normalize math and LaTeX syntax
+          let s = cleanAndNormalizeMath(str);
+
+          // Protect sub and sup tags before escaping HTML
+          const placeholders = [];
+          s = s.replace(/<sub>([\s\S]*?)<\/sub>/gi, (m, content) => {
+            placeholders.push(`<sub>${content}</sub>`);
+            return `__MATH_SUB_${placeholders.length - 1}__`;
+          });
+          s = s.replace(/<sup>([\s\S]*?)<\/sup>/gi, (m, content) => {
+            placeholders.push(`<sup>${content}</sup>`);
+            return `__MATH_SUP_${placeholders.length - 1}__`;
+          });
+
           // Escape HTML
-          let s = str
+          s = s
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
@@ -1463,6 +1614,12 @@ YOUR STRICT DIRECTIVES:
           s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
           // Italic: *text*
           s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+          // Restore protected sub and sup tags
+          placeholders.forEach((tag, idx) => {
+            s = s.replace(`__MATH_SUB_${idx}__`, tag);
+            s = s.replace(`__MATH_SUP_${idx}__`, tag);
+          });
 
           return s;
         }
@@ -1515,8 +1672,8 @@ YOUR STRICT DIRECTIVES:
             if (trimmed.startsWith('# ')) {
               children.push(
                 new Paragraph({
-                  text: trimmed.slice(2),
                   heading: HeadingLevel.HEADING_1,
+                  children: parseInlineDocxRuns(trimmed.slice(2), { bold: true, color: '1E3A8A' }),
                   spacing: { before: 320, after: 140 }
                 })
               );
@@ -1525,8 +1682,8 @@ YOUR STRICT DIRECTIVES:
             else if (trimmed.startsWith('## ')) {
               children.push(
                 new Paragraph({
-                  text: trimmed.slice(3),
                   heading: HeadingLevel.HEADING_2,
+                  children: parseInlineDocxRuns(trimmed.slice(3), { bold: true, color: '1E293B' }),
                   spacing: { before: 260, after: 100 }
                 })
               );
@@ -1535,9 +1692,21 @@ YOUR STRICT DIRECTIVES:
             else if (trimmed.startsWith('### ')) {
               children.push(
                 new Paragraph({
-                  text: trimmed.slice(4),
                   heading: HeadingLevel.HEADING_3,
+                  children: parseInlineDocxRuns(trimmed.slice(4), { bold: true, color: '334155' }),
                   spacing: { before: 200, after: 80 }
+                })
+              );
+            }
+            // Display Equation Block ($$...$$ or \[...\])
+            else if ((trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 4) ||
+                     (trimmed.startsWith('\\[') && trimmed.endsWith('\\]') && trimmed.length > 4)) {
+              const innerEq = trimmed.startsWith('$$') ? trimmed.slice(2, -2).trim() : trimmed.slice(2, -2).trim();
+              children.push(
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200, after: 200 },
+                  children: parseInlineDocxRuns(innerEq, { font: 'Cambria Math', size: 24, italics: true })
                 })
               );
             }
@@ -1662,19 +1831,23 @@ YOUR STRICT DIRECTIVES:
           }, 10000);
         }
 
-        // Parse inline Markdown into an array of docx.TextRun objects
+        // Parse inline Markdown into an array of docx.TextRun objects with full mathematical subscript/superscript support
         function parseInlineDocxRuns(text, baseOptions = {}) {
           const { TextRun } = window.docx;
           const runs = [];
-          const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
+
+          // Clean & normalize math expressions
+          let s = cleanAndNormalizeMath(text);
+
+          const tokenRegex = /(<sub>[\s\S]*?<\/sub>|<sup>[\s\S]*?<\/sup>|\*\*\*[\s\S]*?\*\*\*|\*\*[\s\S]*?\*\*|\*[^*]+?\*|`[^`]+?`)/g;
           let lastIndex = 0;
           let match;
 
-          while ((match = regex.exec(text)) !== null) {
+          while ((match = tokenRegex.exec(s)) !== null) {
             if (match.index > lastIndex) {
               runs.push(
                 new TextRun({
-                  text: text.slice(lastIndex, match.index),
+                  text: s.slice(lastIndex, match.index),
                   font: 'Calibri',
                   size: 22,
                   ...baseOptions
@@ -1683,37 +1856,41 @@ YOUR STRICT DIRECTIVES:
             }
 
             const token = match[0];
-            if (token.startsWith('***') && token.endsWith('***')) {
+            if (token.startsWith('<sub>') && token.endsWith('</sub>')) {
+              let inner = token.slice(5, -6);
+              // Clean inner subscript symbols
+              inner = inner.replace(/\bv1\b/g, 'ν₁')
+                           .replace(/\bv2\b/g, 'ν₂')
+                           .replace(/\bv\b/g, 'ν');
               runs.push(
                 new TextRun({
-                  text: token.slice(3, -3),
-                  bold: true,
-                  italics: true,
+                  text: inner,
+                  subScript: true,
                   font: 'Calibri',
                   size: 22,
                   ...baseOptions
                 })
               );
+            } else if (token.startsWith('<sup>') && token.endsWith('</sup>')) {
+              const inner = token.slice(5, -6);
+              runs.push(
+                new TextRun({
+                  text: inner,
+                  superScript: true,
+                  font: 'Calibri',
+                  size: 22,
+                  ...baseOptions
+                })
+              );
+            } else if (token.startsWith('***') && token.endsWith('***')) {
+              const inner = token.slice(3, -3);
+              runs.push(...parseInlineDocxRuns(inner, { ...baseOptions, bold: true, italics: true }));
             } else if (token.startsWith('**') && token.endsWith('**')) {
-              runs.push(
-                new TextRun({
-                  text: token.slice(2, -2),
-                  bold: true,
-                  font: 'Calibri',
-                  size: 22,
-                  ...baseOptions
-                })
-              );
+              const inner = token.slice(2, -2);
+              runs.push(...parseInlineDocxRuns(inner, { ...baseOptions, bold: true }));
             } else if (token.startsWith('*') && token.endsWith('*')) {
-              runs.push(
-                new TextRun({
-                  text: token.slice(1, -1),
-                  italics: true,
-                  font: 'Calibri',
-                  size: 22,
-                  ...baseOptions
-                })
-              );
+              const inner = token.slice(1, -1);
+              runs.push(...parseInlineDocxRuns(inner, { ...baseOptions, italics: true }));
             } else if (token.startsWith('`') && token.endsWith('`')) {
               runs.push(
                 new TextRun({
@@ -1726,13 +1903,13 @@ YOUR STRICT DIRECTIVES:
               );
             }
 
-            lastIndex = regex.lastIndex;
+            lastIndex = tokenRegex.lastIndex;
           }
 
-          if (lastIndex < text.length) {
+          if (lastIndex < s.length) {
             runs.push(
               new TextRun({
-                text: text.slice(lastIndex),
+                text: s.slice(lastIndex),
                 font: 'Calibri',
                 size: 22,
                 ...baseOptions
